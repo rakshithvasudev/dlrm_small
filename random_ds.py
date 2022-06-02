@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.utils.data import Dataset, RandomSampler 
+from torch.utils.data import Dataset, RandomSampler
 import argparse
 from numpy import random as ra
 from collections import deque
@@ -9,10 +9,7 @@ from collections import deque
 def collate_wrapper_random_offset(list_of_tuples):
     # where each tuple is (X, lS_o, lS_i, T)
     (X, lS_o, lS_i, T) = list_of_tuples[0]
-    return (X,
-            torch.stack(lS_o),
-            lS_i,
-            T)
+    return (X, torch.stack(lS_o), lS_i, T)
 
 
 def dash_separated_ints(value):
@@ -22,8 +19,7 @@ def dash_separated_ints(value):
             int(val)
         except ValueError:
             raise argparse.ArgumentTypeError(
-                "%s is not a valid dash separated list of ints" % value
-            )
+                "%s is not a valid dash separated list of ints" % value)
 
     return value
 
@@ -35,15 +31,16 @@ def dash_separated_floats(value):
             float(val)
         except ValueError:
             raise argparse.ArgumentTypeError(
-                "%s is not a valid dash separated list of floats" % value
-            )
+                "%s is not a valid dash separated list of floats" % value)
 
     return value
+
 
 def generate_random_output_batch(n, num_targets, round_targets=False):
     # target (probability of a click)
     if round_targets:
-        P = np.round(ra.rand(n, num_targets).astype(np.float32)).astype(np.float32)
+        P = np.round(ra.rand(n, num_targets).astype(np.float32)).astype(
+            np.float32)
     else:
         P = ra.rand(n, num_targets).astype(np.float32)
 
@@ -83,8 +80,8 @@ def generate_dist_input_batch(
                 # random between [1,num_indices_per_lookup])
                 r = ra.random(1)
                 sparse_group_size = np.int64(
-                    np.round(max([1.0], r * min(size, num_indices_per_lookup)))
-                )
+                    np.round(max([1.0],
+                                 r * min(size, num_indices_per_lookup))))
             # sparse indices to be used per embedding
             if rand_data_dist == "gaussian":
                 if rand_data_mu == -1:
@@ -94,9 +91,10 @@ def generate_dist_input_batch(
                 sparse_group = np.unique(sparse_group).astype(np.int64)
             elif rand_data_dist == "uniform":
                 r = ra.random(sparse_group_size)
-                sparse_group = np.unique(np.round(r * (size - 1)).astype(np.int64))
+                sparse_group = np.unique(
+                    np.round(r * (size - 1)).astype(np.int64))
             else:
-                raise(rand_data_dist, "distribution is not supported. \
+                raise (rand_data_dist, "distribution is not supported. \
                      please select uniform or gaussian")
 
             # reset sparse_group_size in case some index duplicates were removed
@@ -112,34 +110,29 @@ def generate_dist_input_batch(
     return (Xt, lS_emb_offsets, lS_emb_indices)
 
 
-
-
-
 # uniform ditribution (input data)
 class RandomDataset(Dataset):
 
-    def __init__(
-            self,
-            m_den,
-            ln_emb,
-            data_size,
-            num_batches,
-            mini_batch_size,
-            num_indices_per_lookup,
-            num_indices_per_lookup_fixed,
-            num_targets=1,
-            round_targets=False,
-            data_generation="random",
-            trace_file="",
-            enable_padding=False,
-            reset_seed_on_access=False,
-            rand_data_dist="uniform",
-            rand_data_min=1,
-            rand_data_max=1,
-            rand_data_mu=-1,
-            rand_data_sigma=1,
-            rand_seed=0
-    ):
+    def __init__(self,
+                 m_den,
+                 ln_emb,
+                 data_size,
+                 num_batches,
+                 mini_batch_size,
+                 num_indices_per_lookup,
+                 num_indices_per_lookup_fixed,
+                 num_targets=1,
+                 round_targets=False,
+                 data_generation="random",
+                 trace_file="",
+                 enable_padding=False,
+                 reset_seed_on_access=False,
+                 rand_data_dist="uniform",
+                 rand_data_min=1,
+                 rand_data_max=1,
+                 rand_data_mu=-1,
+                 rand_data_sigma=1,
+                 rand_seed=0):
         # compute batch size
         nbatches = int(np.ceil((data_size * 1.0) / mini_batch_size))
         if num_batches != 0:
@@ -176,9 +169,8 @@ class RandomDataset(Dataset):
 
         if isinstance(index, slice):
             return [
-                self[idx] for idx in range(
-                    index.start or 0, index.stop or len(self), index.step or 1
-                )
+                self[idx] for idx in range(index.start or 0, index.stop
+                                           or len(self), index.step or 1)
             ]
 
         # WARNING: reset seed on access to first element
@@ -187,7 +179,8 @@ class RandomDataset(Dataset):
             self.reset_numpy_seed(self.rand_seed)
 
         # number of data points in a batch
-        n = min(self.mini_batch_size, self.data_size - (index * self.mini_batch_size))
+        n = min(self.mini_batch_size,
+                self.data_size - (index * self.mini_batch_size))
 
         # generate a batch of dense and sparse features
         if self.data_generation == "random":
@@ -204,14 +197,13 @@ class RandomDataset(Dataset):
                 rand_data_sigma=self.rand_data_sigma,
             )
 
-
         else:
-            sys.exit(
-                "ERROR: --data-generation=" + self.data_generation + " is not supported"
-            )
+            sys.exit("ERROR: --data-generation=" + self.data_generation +
+                     " is not supported")
 
         # generate a batch of target (probability of a click)
-        T = generate_random_output_batch(n, self.num_targets, self.round_targets)
+        T = generate_random_output_batch(n, self.num_targets,
+                                         self.round_targets)
 
         return (X, lS_o, lS_i, T)
 
@@ -220,7 +212,11 @@ class RandomDataset(Dataset):
         # therefore we should use num_batches rather than data_size below
         return self.num_batches
 
-def make_random_data_and_loader(args, ln_emb, m_den,
+
+def make_random_data_and_loader(
+    args,
+    ln_emb,
+    m_den,
     offset_to_length_converter=False,
 ):
 
@@ -265,8 +261,7 @@ def make_random_data_and_loader(args, ln_emb, m_den,
         rand_data_max=args.rand_data_max,
         rand_data_mu=args.rand_data_mu,
         rand_data_sigma=args.rand_data_sigma,
-        rand_seed=args.numpy_rand_seed
-    )
+        rand_seed=args.numpy_rand_seed)
 
     collate_wrapper_random = collate_wrapper_random_offset
     if offset_to_length_converter:
@@ -294,27 +289,32 @@ def make_random_data_and_loader(args, ln_emb, m_den,
     return train_data, train_loader, test_data, test_loader
 
 
-
-if __name__=="__main__":
-
+if __name__ == "__main__":
 
     ### parse arguments ###
+    # TODO(rakshithvasudev): remove argparser and keep default values 
     parser = argparse.ArgumentParser(
-        description="Train Deep Learning Recommendation Model (DLRM)"
-    )
+        description="Train Deep Learning Recommendation Model (DLRM)")
 
     # model related parameters
     parser.add_argument("--arch-sparse-feature-size", type=int, default=2)
-    parser.add_argument(
-        "--arch-embedding-size", type=dash_separated_ints, default="4-3-2"
-    )
+    parser.add_argument("--arch-embedding-size",
+                        type=dash_separated_ints,
+                        default="4-3-2")
     # j will be replaced with the table number
-    parser.add_argument("--arch-mlp-bot", type=dash_separated_ints, default="4-3-2")
-    parser.add_argument("--arch-mlp-top", type=dash_separated_ints, default="4-2-1")
-    parser.add_argument(
-        "--arch-interaction-op", type=str, choices=["dot", "cat"], default="dot"
-    )
-    parser.add_argument("--arch-interaction-itself", action="store_true", default=False)
+    parser.add_argument("--arch-mlp-bot",
+                        type=dash_separated_ints,
+                        default="4-3-2")
+    parser.add_argument("--arch-mlp-top",
+                        type=dash_separated_ints,
+                        default="4-2-1")
+    parser.add_argument("--arch-interaction-op",
+                        type=str,
+                        choices=["dot", "cat"],
+                        default="dot")
+    parser.add_argument("--arch-interaction-itself",
+                        action="store_true",
+                        default=False)
     parser.add_argument("--weighted-pooling", type=str, default=None)
     # embedding table options
     parser.add_argument("--md-flag", action="store_true", default=False)
@@ -327,35 +327,43 @@ if __name__=="__main__":
     parser.add_argument("--qr-collisions", type=int, default=4)
     # activations and loss
     parser.add_argument("--activation-function", type=str, default="relu")
-    parser.add_argument("--loss-function", type=str, default="mse")  # or bce or wbce
-    parser.add_argument(
-        "--loss-weights", type=dash_separated_floats, default="1.0-1.0"
-    )  # for wbce
+    parser.add_argument("--loss-function", type=str,
+                        default="mse")  # or bce or wbce
+    parser.add_argument("--loss-weights",
+                        type=dash_separated_floats,
+                        default="1.0-1.0")  # for wbce
     parser.add_argument("--loss-threshold", type=float, default=0.0)  # 1.0e-7
     parser.add_argument("--round-targets", type=bool, default=False)
     # data
     parser.add_argument("--data-size", type=int, default=1)
     parser.add_argument("--num-batches", type=int, default=0)
-    parser.add_argument(
-        "--data-generation", type=str, default="random"
-    )  # synthetic or dataset
-    parser.add_argument(
-        "--rand-data-dist", type=str, default="uniform"
-    )  # uniform or gaussian
+    parser.add_argument("--data-generation", type=str,
+                        default="random")  # synthetic or dataset
+    parser.add_argument("--rand-data-dist", type=str,
+                        default="uniform")  # uniform or gaussian
     parser.add_argument("--rand-data-min", type=float, default=0)
     parser.add_argument("--rand-data-max", type=float, default=1)
     parser.add_argument("--rand-data-mu", type=float, default=-1)
     parser.add_argument("--rand-data-sigma", type=float, default=1)
-    parser.add_argument("--data-trace-file", type=str, default="./input/dist_emb_j.log")
-    parser.add_argument("--data-set", type=str, default="kaggle")  # or terabyte
+    parser.add_argument("--data-trace-file",
+                        type=str,
+                        default="./input/dist_emb_j.log")
+    parser.add_argument("--data-set", type=str,
+                        default="kaggle")  # or terabyte
     parser.add_argument("--raw-data-file", type=str, default="")
     parser.add_argument("--processed-data-file", type=str, default="")
-    parser.add_argument("--data-randomize", type=str, default="total")  # or day or none
-    parser.add_argument("--data-trace-enable-padding", type=bool, default=False)
+    parser.add_argument("--data-randomize", type=str,
+                        default="total")  # or day or none
+    parser.add_argument("--data-trace-enable-padding",
+                        type=bool,
+                        default=False)
     parser.add_argument("--max-ind-range", type=int, default=-1)
-    parser.add_argument("--data-sub-sample-rate", type=float, default=0.0)  # in [0, 1]
+    parser.add_argument("--data-sub-sample-rate", type=float,
+                        default=0.0)  # in [0, 1]
     parser.add_argument("--num-indices-per-lookup", type=int, default=10)
-    parser.add_argument("--num-indices-per-lookup-fixed", type=bool, default=False)
+    parser.add_argument("--num-indices-per-lookup-fixed",
+                        type=bool,
+                        default=False)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--memory-map", action="store_true", default=False)
     # training
@@ -393,11 +401,19 @@ if __name__=="__main__":
     parser.add_argument("--test-mini-batch-size", type=int, default=-1)
     parser.add_argument("--test-num-workers", type=int, default=-1)
     parser.add_argument("--print-time", action="store_true", default=False)
-    parser.add_argument("--print-wall-time", action="store_true", default=False)
+    parser.add_argument("--print-wall-time",
+                        action="store_true",
+                        default=False)
     parser.add_argument("--debug-mode", action="store_true", default=False)
-    parser.add_argument("--enable-profiling", action="store_true", default=False)
-    parser.add_argument("--plot-compute-graph", action="store_true", default=False)
-    parser.add_argument("--tensor-board-filename", type=str, default="run_kaggle_pt")
+    parser.add_argument("--enable-profiling",
+                        action="store_true",
+                        default=False)
+    parser.add_argument("--plot-compute-graph",
+                        action="store_true",
+                        default=False)
+    parser.add_argument("--tensor-board-filename",
+                        type=str,
+                        default="run_kaggle_pt")
     # store/load model
     parser.add_argument("--save-model", type=str, default="")
     parser.add_argument("--load-model", type=str, default="")
@@ -407,8 +423,12 @@ if __name__=="__main__":
     parser.add_argument("--mlperf-acc-threshold", type=float, default=0.0)
     # stop at target AUC Terabyte (no subsampling) 0.8025
     parser.add_argument("--mlperf-auc-threshold", type=float, default=0.0)
-    parser.add_argument("--mlperf-bin-loader", action="store_true", default=False)
-    parser.add_argument("--mlperf-bin-shuffle", action="store_true", default=False)
+    parser.add_argument("--mlperf-bin-loader",
+                        action="store_true",
+                        default=False)
+    parser.add_argument("--mlperf-bin-shuffle",
+                        action="store_true",
+                        default=False)
     # mlperf gradient accumulation iterations
     parser.add_argument("--mlperf-grad-accum-iter", type=int, default=1)
     # LR policy
@@ -422,22 +442,23 @@ if __name__=="__main__":
     global writer
     args = parser.parse_args()
 
-    ln_emb = np.array([1024*128]*26)
+    ln_emb = np.array([1024 * 128] * 26)
     #print(ln_emb)
     m_den = 13
     train_data, train_loader, test_data, test_loader = make_random_data_and_loader(
-            args, ln_emb, m_den,
-            offset_to_length_converter=False,
-            )
+        args,
+        ln_emb,
+        m_den,
+        offset_to_length_converter=False,
+    )
 
     it = iter(train_loader)
-    batch =next(it) 
+    batch = next(it)
     tuple_size = len(batch)
     print(f"Tuple size : {len(batch)}")
     print(f"Tuple type : {type(batch)}")
     print(f"Tuple entry : {batch}")
     print(f"{'='*100}")
-
 
     #print(batch[0])
     #print(len(batch[0]))
@@ -447,5 +468,3 @@ if __name__=="__main__":
         print(f"tuple {i} len: {batch[i][0].shape}")
         print(f"tuple entry: {batch[i]}")
         print(f"tuple type: {type(batch[i])}")
-
-
