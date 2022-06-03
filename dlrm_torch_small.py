@@ -321,7 +321,6 @@ class DlrmSmall(nn.Module):
 if __name__ == "__main__":
 
     ### parse arguments ###
-    # TODO(rakshithvasudev): remove argparser and keep default values 
     parser = argparse.ArgumentParser(
         description="Train Deep Learning Recommendation Model (DLRM)")
 
@@ -366,8 +365,8 @@ if __name__ == "__main__":
     parser.add_argument("--loss-threshold", type=float, default=0.0)  # 1.0e-7
     parser.add_argument("--round-targets", type=bool, default=False)
     # data
-    parser.add_argument("--data-size", type=int, default=50000000)
-    parser.add_argument("--num-batches", type=int, default=1000)
+    parser.add_argument("--data-size", type=int, default=500000000)
+    parser.add_argument("--num-batches", type=int, default=10)
     parser.add_argument("--data-generation", type=str,
                         default="random")  # synthetic or dataset
     parser.add_argument("--rand-data-dist", type=str,
@@ -395,7 +394,7 @@ if __name__ == "__main__":
     parser.add_argument("--num-indices-per-lookup-fixed",
                         type=bool,
                         default=False)
-    parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--num-workers", type=int, default=20)
     parser.add_argument("--memory-map", action="store_true", default=False)
     # training
     parser.add_argument("--mini-batch-size", type=int, default=64 * 64)
@@ -496,6 +495,7 @@ if __name__ == "__main__":
     #print(type(train_loader))
     #print(len(train_loader))
     it = iter(train_loader)
+    it_test = iter(test_loader)
     #batch =next(it)
 
     ### some basic setup ###
@@ -545,7 +545,15 @@ if __name__ == "__main__":
     #    print(f"forward: {Z}")
     #    print(f"forward: {Z.shape}")
 
+    nbatches = args.mini_batch_size
+
     for j in range(0, 10000):
+
+        train_loss = 0
+        total_loss = 0
+        total_samp = 0
+        total_iter = 0
+
         batch = next(it)
         t1 = time_wrap()
         Z = dlrm_wrap(batch[0], batch[1], batch[2], device)
@@ -565,4 +573,39 @@ if __name__ == "__main__":
         optimizer.step()
         t2 = time_wrap()
 
-        print(f"time to train: {t2 -t1}s")
+        total_loss += L * mbs
+        total_iter += 1
+        total_samp += mbs
+
+        print(f"Training Loss : {total_loss/total_samp}")
+        print(f"Iteration time : {t2 -t1}s")
+
+        test_accu = 0
+        test_loss = 0
+        total_samples = 0
+
+        test_batch = next(it_test)
+        tt1_test = time_wrap()
+        Z_test = dlrm_wrap(test_batch[0], test_batch[1], test_batch[2], device)
+        E_test = loss_fn_wrap(Z_test, batch[3], device)
+
+        L_test = E_test.detach().cpu().numpy()
+        S_test = Z_test.detach().cpu().numpy()
+        T_test = batch[3].detach().cpu().numpy()
+        mbs_test = T_test.shape[0]
+        A_test = (np.sum(
+            (np.round(S_test, 0) == T_test).astype(np.uint8)) / mbs_test)
+        tt2_test = time_wrap()
+
+        test_accu += A_test
+        test_loss += L_test
+        total_samp += mbs_test
+
+        print(f"Test Loss : {test_loss/total_samp}")
+        print(f"test time : {tt2_test -tt1_test}s")
+
+    gL_test = test_loss / nbatches_test
+    gA_test = test_accu / nbatches_test
+
+    print("Testing at - {}/{} of epoch {}, ".format(j, nbatches, 0) +
+          "loss {:.6f}, accuracy {:3.3f} %".format(gL_test, gA_test * 100))

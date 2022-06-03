@@ -292,7 +292,7 @@ def make_random_data_and_loader(
 if __name__ == "__main__":
 
     ### parse arguments ###
-    # TODO(rakshithvasudev): remove argparser and keep default values 
+    # TODO(rakshithvasudev): remove argparser and keep default values
     parser = argparse.ArgumentParser(
         description="Train Deep Learning Recommendation Model (DLRM)")
 
