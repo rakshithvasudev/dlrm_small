@@ -145,21 +145,12 @@ class DlrmBottom(nn.Module):
         # Create joint embedding
         if categorical_feature_sizes:
             logging.warning("Combined all categorical features to single embedding table.")
-            if not use_embedding_ext:
+                if not use_embedding_ext:
                 self.joint_embedding = dlrm.nn.BuckleEmbedding(categorical_feature_sizes, embedding_dim, device)
                 for cat, size in enumerate(categorical_feature_sizes):
                     module = self.joint_embedding
                     nn.init.uniform_(
                         module.embedding.weight.data[module.offsets[cat]:module.offsets[cat + 1]],
-                        -math.sqrt(1. / size),
-                        math.sqrt(1. / size))
-            else:
-                self.joint_embedding = dlrm.nn.JointSparseEmbedding(
-                    categorical_feature_sizes, embedding_dim, device)
-                for cat, size in enumerate(categorical_feature_sizes):
-                    module = self.joint_embedding
-                    nn.init.uniform_(
-                        module.weights.data[module.offsets[cat]:module.offsets[cat + 1]],
                         -math.sqrt(1. / size),
                         math.sqrt(1. / size))
         else:
