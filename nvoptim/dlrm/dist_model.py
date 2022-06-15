@@ -21,7 +21,6 @@ import torch
 from torch import nn
 
 import dlrm.nn
-from dlrm.nn.functional import dotBasedInteract
 from dlrm.utils import distributed as dist
 
 try:
