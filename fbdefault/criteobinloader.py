@@ -1,12 +1,14 @@
 import os
 import numpy as np
-from torch.utils.data import Dataset
-import torch
 import time
 import math
 from tqdm import tqdm
 import argparse
+#from pathlib import path
 
+
+import torch
+from torch.utils.data import Dataset, RandomSampler
 
 def _transform_features(x_int_batch,
                         x_cat_batch,
@@ -109,39 +111,119 @@ def _preprocess(args):
                         split=split)
 
 
-#def _test_bin():
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--output_directory', required=True)
-    #parser.add_argument('--input_data_prefix', required=True)
-    parser.add_argument('--split',
-                        choices=['train', 'test', 'val'],
-                        required=True)
-    args = parser.parse_args()
+def make_criteo_data_and_loaders(args, offset_to_length_converter = False):
+    
+    #data_directory = path.dirname(args.raw_data_file)
+    #
+    #lstr = args.processed_data_file.split("/")
+    #d_path = "/".join(lstr[0:-1]) + "/" + lstr[-1].split(".")[0]
+    #train_file = d_path + "_train.bin"
 
-    #_preprocess(args)
-
-    binary_data_file = os.path.join(args.output_directory,
-                                    '{}_data.bin'.format(args.split))
-
+    train_file = os.path.join(args.output_directory, 'train_data.bin')
+    test_file = os.path.join(args.output_directory, 'test_data.bin')
     counts_file = os.path.join(args.output_directory, 'day_fea_count.npz')
-    dataset_binary = CriteoBinDataset(
-        data_file=binary_data_file,
-        counts_file=counts_file,
-        batch_size=1,
-    )
-    #from dlrm_data_pytorch import CriteoDataset
-    #from dlrm_data_pytorch import collate_wrapper_criteo_offset as collate_wrapper_criteo
 
-    binary_loader = torch.utils.data.DataLoader(
-        dataset_binary,
-        batch_size=None,
-        shuffle=False,
-        num_workers=0,
-        collate_fn=None,
-        pin_memory=False,
-        drop_last=False,
-    )
+    train_data = CriteoBinDataset(data_file = train_file,
+                                    counts_file = counts_file,
+                                    batch_size = args.mini_batch_size,
+                                    max_ind_range = args.max_ind_range
+            )
+
+    train_loader = torch.utils.data.DataLoader(
+                train_data,
+                batch_size = None,
+                batch_sampler = None,
+                shuffle = False, 
+                num_workers = 0,
+                collate_fn = None, 
+                pin_memory = False,
+                drop_last = False, 
+                sampler = RandomSampler(train_data)
+            )
+
+    test_data = CriteoBinDataset(data_file = train_file,
+                                    counts_file = counts_file,
+                                    batch_size = args.mini_batch_size,
+                                    max_ind_range = args.max_ind_range
+            )
+
+    test_loader = torch.utils.data.DataLoader(
+                test_data,
+                batch_size = None,
+                batch_sampler = None,
+                shuffle = False, 
+                num_workers = 0,
+                collate_fn = None, 
+                pin_memory = False,
+                drop_last = False, 
+                sampler = RandomSampler(train_data)
+            )
+
+    return train_data, train_loader, test_data, test_loader
+
+
+
+
+
+
+
+#def _test_bin():
+#if __name__ == "__main__":
+#    parser = argparse.ArgumentParser()
+#    parser.add_argument('--output_directory', required=True)
+#    #parser.add_argument('--input_data_prefix', required=True)
+#    parser.add_argument('--split',
+#                        choices=['train', 'test', 'val'],
+#                        required=True)
+#    args = parser.parse_args()
+#
+#    #_preprocess(args)
+#
+#    binary_data_file = os.path.join(args.output_directory,
+#                                    '{}_data.bin'.format(args.split))
+#
+#    counts_file = os.path.join(args.output_directory, 'day_fea_count.npz')
+#    dataset_binary = CriteoBinDataset(
+#        data_file=binary_data_file,
+
+
+
+
+
+
+#def _test_bin():
+#if __name__ == "__main__":
+#    parser = argparse.ArgumentParser()
+#    parser.add_argument('--output_directory', required=True)
+#    #parser.add_argument('--input_data_prefix', required=True)
+#    parser.add_argument('--split',
+#                        choices=['train', 'test', 'val'],
+#                        required=True)
+#    args = parser.parse_args()
+#
+#    #_preprocess(args)
+#
+#    binary_data_file = os.path.join(args.output_directory,
+#                                    '{}_data.bin'.format(args.split))
+#
+#    counts_file = os.path.join(args.output_directory, 'day_fea_count.npz')
+#    dataset_binary = CriteoBinDataset(
+#        data_file=binary_data_file,
+#        counts_file=counts_file,
+#        batch_size=1,
+#    )
+#    #from dlrm_data_pytorch import CriteoDataset
+#    #from dlrm_data_pytorch import collate_wrapper_criteo_offset as collate_wrapper_criteo
+#
+#    binary_loader = torch.utils.data.DataLoader(
+#        dataset_binary,
+#        batch_size=None,
+#        shuffle=False,
+#        num_workers=0,
+#        collate_fn=None,
+#        pin_memory=False,
+#        drop_last=False,
+    #)
 
     #original_dataset = CriteoDataset(
     #    dataset='terabyte',
@@ -175,13 +257,19 @@ if __name__ == "__main__":
     #    if i > len(dataset_binary):
     #        break
     #print('PASSED')
-    train_iter = iter(binary_loader)
-    element = next(train_iter)
-    print(element)
-    print(element[0].shape)
-    #for i in range(50):
-    #    train_features, train_labels = next(train_iter)
+#    train_iter = iter(binary_loader)
+#    element = next(train_iter)
+    #print(element)
+    #print(element[0].shape)
+    #print(element[1].shape)
+    
+#    for i in range(500000):
+#    #    train_features, train_labels = next(train_iter)
     #    print(f"train_features : {train_features}, train_labels: {train_labels}")
+##        print(element)
+##        if 0 not in element[1]:
+##            raise Exception("found other than 0")
+##        print(i+1)
 
 #if __name__=="__main__":
 #    _test_bin()

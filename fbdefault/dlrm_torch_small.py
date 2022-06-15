@@ -1,6 +1,7 @@
 import functools
 from typing import Sequence
 import time
+import sys
 
 import numpy as np
 import torch
@@ -11,6 +12,7 @@ from torch.nn.parallel.parallel_apply import parallel_apply
 from torch.nn.parallel.replicate import replicate
 from torch.nn.parallel.scatter_gather import gather, scatter
 
+from criteobinloader import CriteoBinDataset,make_criteo_data_and_loaders
 
 def collate_wrapper_random_offset(list_of_tuples):
     # where each tuple is (X, lS_o, lS_i, T)
@@ -229,6 +231,11 @@ class DlrmSmall(nn.Module):
         # scatter dense features (data parallelism)
         # print(dense_x.device)
         dense_x = scatter(dense_x, device_ids, dim=0)
+
+        print(f"len(self.emb_l):{len(self.emb_l)}")
+        print(f"len(lS_o): {len(lS_o)}")
+        print(f"len(lS_i): {len(lS_i)}")
+        print("len(self.emb_l) != len(lS_o)) or (len(self.emb_l) != len(lS_i)")
 
         if (len(self.emb_l) != len(lS_o)) or (len(self.emb_l) != len(lS_i)):
             sys.exit(
@@ -465,6 +472,9 @@ if __name__ == "__main__":
     parser.add_argument("--lr-num-warmup-steps", type=int, default=0)
     parser.add_argument("--lr-decay-start-step", type=int, default=0)
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
+    # data
+    parser.add_argument("--output_directory", type=str, default="/dataset")
+
 
     global args
     global nbatches
@@ -484,13 +494,45 @@ if __name__ == "__main__":
 
     #embedding = dlrm.create_emb(m_spa, vocab_size)
 
-    m_den = 13
-    train_data, train_loader, test_data, test_loader = make_random_data_and_loader(
-        args,
-        vocab_size,
-        m_den,
-        offset_to_length_converter=False,
-    )
+    # random dataset 
+    #if args.data_generation == "random":
+        #m_den = 13
+        #train_data, train_loader, test_data, test_loader = make_random_data_and_loader(
+        #    args,
+        #    vocab_size,
+        #    m_den,
+        #    offset_to_length_converter=False,
+        #)
+
+    
+
+    
+    train_data, train_loader, test_data, test_loader = make_criteo_data_and_loaders(args, offset_to_length_converter=False)
+    table_feature_map = {idx: idx for idx in range(len(train_data.counts))}
+    nbatches = args.num_batches if args.num_batches > 0 else len(train_loader)
+    nbatches_test = args.num_batches if args.num_batches > 0 else len(test_loader)
+
+    ln_emb = train_data.counts
+
+    if args.max_ind_range > 0:
+        ln_emb = np.array(
+                list(
+                    map( lambda x: x if x< args.max_ind_range else args.max_ind_range,
+                        ln_emb,
+                    )
+                )
+            )
+    else:
+        ln_emb = np.array(ln_emb)
+    m_den = train_data.m_den
+    #ln_bot[0] = m_den
+
+    args.ln_emb = ln_emb.tolist()
+    print(f"ln_emb: {ln_emb}")
+    m_spa = 26
+    vocab_size = ln_emb
+
+
 
     #print(type(train_loader))
     #print(len(train_loader))
@@ -545,7 +587,6 @@ if __name__ == "__main__":
     #    print(f"forward: {Z}")
     #    print(f"forward: {Z.shape}")
 
-    nbatches = args.mini_batch_size
 
     for j in range(0, 10000):
 
